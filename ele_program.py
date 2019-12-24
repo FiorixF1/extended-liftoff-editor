@@ -69,9 +69,7 @@ class Program:
         self.instance_id_counter = new_instance.sync_instance_id(self.instance_id_counter)
         
         new_instance.translate(x, y, z)
-        new_instance.rotate_x(pitch)
-        new_instance.rotate_y(yaw)
-        new_instance.rotate_z(roll)
+        new_instance.rotate(pitch, yaw, roll)
         
         self.instances.append(new_instance)
         
@@ -94,10 +92,8 @@ class Program:
             self.instance_id_counter = new_instance.sync_instance_id(self.instance_id_counter)
                 
             new_instance.translate(x, y, z)
-            new_instance.rotate_x(pitch)
-            new_instance.rotate_y(yaw)
-            new_instance.rotate_z(roll)
-          
+            new_instance.rotate(pitch, yaw, roll)
+            
             self.instances.append(new_instance)
             
         return map(lambda x: x.pretty_print(), self.instances)
@@ -111,4 +107,5 @@ class Program:
         for instance in self.instances:
             xml_output += str(instance)
         xml_output += '\n  </blueprints>'
+        xml_output += '\n  <lastTrackItemID>{}</lastTrackItemID>'.format(self.instance_id_counter)
         file.write(xml_output)

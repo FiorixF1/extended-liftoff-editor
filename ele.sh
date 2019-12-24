@@ -1,1 +1,1 @@
-python ele_gui.py
+python3 ele_gui.py

@@ -1,56 +1,90 @@
 import numpy as np
-from math import cos, sin, pi
+from math import radians, degrees, asin, atan2
+from pyquaternion import Quaternion
 
 
 
-def get_translation_matrix(x, y, z):
-    translation_matrix = np.zeros((4, 4))
-    for i in range(4):
-        translation_matrix[i, i] = 1
-    translation_matrix[0, 3] = x
-    translation_matrix[1, 3] = y
-    translation_matrix[2, 3] = z
-    
-    return translation_matrix
+def rotate(object_x, object_y, object_z, center_x, center_y, center_z, q_rotation):
+    q_center = Quaternion([0, center_x, center_y, center_z])
+    q_object = Quaternion([0, object_x, object_y, object_z])
+    q_vector = q_object - q_center
+    answer = q_center + q_rotation*q_vector*q_rotation.conjugate
+    return (answer.x, answer.y, answer.z)
 
-def get_x_rotation_matrix(angle):
-    radians = angle*pi/180
 
-    rotation_matrix = np.zeros((4, 4))
-    rotation_matrix[0, 0] = 1
-    rotation_matrix[1, 1] = cos(radians)
-    rotation_matrix[1, 2] = -sin(radians)
-    rotation_matrix[2, 1] = sin(radians)
-    rotation_matrix[2, 2] = cos(radians)
-    rotation_matrix[3, 3] = 1
 
-    return rotation_matrix
+# queste sono rotazioni fatte secondo gli assi LOCALI, cioè modificati da rotazioni successive, come succede nell'editor di liftoff
+# orientation = tupla di tre quaternioni
+def l_rotate_x(orientation, angle):
+    local_rotation = Quaternion(axis=[orientation[0].x, orientation[0].y, orientation[0].z], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
 
-def get_y_rotation_matrix(angle):
-    radians = angle*pi/180
+def l_rotate_y(orientation, angle):
+    local_rotation = Quaternion(axis=[orientation[1].x, orientation[1].y, orientation[1].z], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
 
-    rotation_matrix = np.zeros((4, 4))
-    rotation_matrix[0, 0] = cos(radians)
-    rotation_matrix[0, 2] = sin(radians)
-    rotation_matrix[1, 1] = 1
-    rotation_matrix[2, 0] = -sin(radians)
-    rotation_matrix[2, 2] = cos(radians)
-    rotation_matrix[3, 3] = 1
+def l_rotate_z(orientation, angle):
+    local_rotation = Quaternion(axis=[orientation[2].x, orientation[2].y, orientation[2].z], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
 
-    return rotation_matrix
+# effettua tre rotazioni locali secondo tutti i tre gli assi
+def l_rotate(orientation, angle_x, angle_y, angle_z):
+    return l_rotate_z(l_rotate_x(l_rotate_y(orientation, angle_y), angle_x), angle_z)
 
-def get_z_rotation_matrix(angle):
-    radians = angle*pi/180
+# ottieni quaternione corrispondente alle tre rotazioni in successione
+def l_get_quat(orientation, angle_x, angle_y, angle_z):
+    quat = Quaternion(axis=[orientation[1].x, orientation[1].y, orientation[1].z], angle=radians(angle_y))
+    orientation = l_rotate_y(orientation, angle_y)
+    quat = Quaternion(axis=[orientation[0].x, orientation[0].y, orientation[0].z], angle=radians(angle_x))*quat
+    orientation = l_rotate_x(orientation, angle_x)
+    quat = Quaternion(axis=[orientation[2].x, orientation[2].y, orientation[2].z], angle=radians(angle_z))*quat
+    #orientation = l_rotate_z(orientation, angle_z)
+    return quat
 
-    rotation_matrix = np.zeros((4, 4))
-    rotation_matrix[0, 0] = cos(radians)
-    rotation_matrix[0, 1] = -sin(radians)
-    rotation_matrix[1, 0] = sin(radians)
-    rotation_matrix[1, 1] = cos(radians)
-    rotation_matrix[2, 2] = 1
-    rotation_matrix[3, 3] = 1
 
-    return rotation_matrix
+
+# queste sono rotazioni fatte secondo gli assi GLOBALI, che non cambiano
+# orientation = tupla di tre quaternioni
+def g_rotate_x(orientation, angle):
+    local_rotation = Quaternion(axis=[1, 0, 0], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
+
+def g_rotate_y(orientation, angle):
+    local_rotation = Quaternion(axis=[0, 1, 0], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
+
+def g_rotate_z(orientation, angle):
+    local_rotation = Quaternion(axis=[0, 0, 1], angle=radians(angle))
+    new_y = local_rotation*orientation[1]*local_rotation.conjugate 
+    new_x = local_rotation*orientation[0]*local_rotation.conjugate
+    new_z = local_rotation*orientation[2]*local_rotation.conjugate
+    return (new_x, new_y, new_z)
+
+# effettua tre rotazioni globali secondo tutti i tre gli assi
+def g_rotate(orientation, angle_x, angle_y, angle_z):
+    return g_rotate_z(g_rotate_x(g_rotate_y(orientation, angle_y), angle_x), angle_z)
+
+# ottieni quaternione corrispondente alle tre rotazioni in successione
+def g_get_quat(orientation, angle_x, angle_y, angle_z):
+    quat = Quaternion(axis=[0, 1, 0], angle=radians(angle_y))
+    quat = Quaternion(axis=[1, 0, 0], angle=radians(angle_x))*quat
+    quat = Quaternion(axis=[0, 0, 1], angle=radians(angle_z))*quat
+    return quat
 
 
 
@@ -59,40 +93,81 @@ class Item:
         self.item_id = item_id
         self.instance_id = instance_id
 
-        self.pos = np.zeros((4, 1))
-        self.pos[0, 0] = pos_x
-        self.pos[1, 0] = pos_y
-        self.pos[2, 0] = pos_z
-        self.pos[3, 0] = 1
+        self.pos_x = pos_x
+        self.pos_y = pos_y
+        self.pos_z = pos_z
         
-        self.rot = np.zeros((3, 1))
-        self.rot[0, 0] = rot_x
-        self.rot[1, 0] = rot_y
-        self.rot[2, 0] = rot_z
+        self.rot_x = rot_x
+        self.rot_y = rot_y
+        self.rot_z = rot_z
+        
+        # orientamento degli assi locali
+        self.quat_x = Quaternion(w=0, x=1, y=0, z=0)
+        self.quat_y = Quaternion(w=0, x=0, y=1, z=0)
+        self.quat_z = Quaternion(w=0, x=0, y=0, z=1)
+        
+        # quaternione che rappresenta la rotazione iniziale
+        self.quat = None
+        
+        # inizializza orientamento degli assi locali e quaternione iniziale
+        self._init_quat()
 
-    def transform(self, transformation_matrix):
-        self.pos = transformation_matrix @ self.pos
+    # initial orientation is based on LOCAL axis
+    def _init_quat(self):
+        local_rotation_1 = Quaternion(axis=[self.quat_y.x, self.quat_y.y, self.quat_y.z], angle=radians(self.rot_y))
+        self.quat_y = local_rotation_1*self.quat_y*local_rotation_1.conjugate 
+        self.quat_x = local_rotation_1*self.quat_x*local_rotation_1.conjugate
+        self.quat_z = local_rotation_1*self.quat_z*local_rotation_1.conjugate
 
-    def rotate_x(self, angle):
-        new_angle = self.rot[0, 0] + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot[0, 0] = new_angle
+        local_rotation_2 = Quaternion(axis=[self.quat_x.x, self.quat_x.y, self.quat_x.z], angle=radians(self.rot_x))
+        self.quat_y = local_rotation_2*self.quat_y*local_rotation_2.conjugate 
+        self.quat_x = local_rotation_2*self.quat_x*local_rotation_2.conjugate
+        self.quat_z = local_rotation_2*self.quat_z*local_rotation_2.conjugate
+ 
+        local_rotation_3 = Quaternion(axis=[self.quat_z.x, self.quat_z.y, self.quat_z.z], angle=radians(self.rot_z))
+        self.quat_y = local_rotation_3*self.quat_y*local_rotation_3.conjugate 
+        self.quat_x = local_rotation_3*self.quat_x*local_rotation_3.conjugate
+        self.quat_z = local_rotation_3*self.quat_z*local_rotation_3.conjugate
+        
+        self.quat = local_rotation_3*local_rotation_2*local_rotation_1
 
-    def rotate_y(self, angle):
-        new_angle = self.rot[1, 0] + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot[1, 0] = new_angle
+    def translate(self, x, y, z):
+        self.pos_x += x
+        self.pos_y += y
+        self.pos_z += z
+    
+    def rotate(self, pitch, yaw, roll):
+        orientation = (Quaternion(self.quat_x), Quaternion(self.quat_y), Quaternion(self.quat_z))
+        self.quat_x, self.quat_y, self.quat_z = g_rotate(orientation, pitch, yaw, roll)
+        final_quat = g_get_quat(orientation, pitch, yaw, roll)*self.quat
+        self.rot_x, self.rot_y, self.rot_z = self._get_pitch_yaw_roll(final_quat)
+    
+    def _get_pitch_yaw_roll(self, orientation):
+        # given the quaternion representing all the rotations, extract the Euler angles
+        # formulas taken from this WONDERFUL website
+        # https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
+        # e = +1 or -1
+        # p0 = w
+        # p1 = quat.y 
+        # p2 = quat.x
+        # p3 = quat.z
+        e = -1
+        p0 = orientation.w
+        p1 = orientation.y
+        p2 = orientation.x
+        p3 = orientation.z
 
-    def rotate_z(self, angle):
-        new_angle = self.rot[2, 0] + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot[2, 0] = new_angle
+        b = asin(2*(p0*p2+e*p1*p3))
+        if round(degrees(b), 5) == 90 or round(degrees(b), 5) == -90:
+            c = 0
+            a = atan2(p1, p0)
+        else:
+            a = atan2(2*(p0*p1 - e*p2*p3), 1-2*(p1**2+p2**2))
+            c = atan2(2*(p0*p3 - e*p1*p2), 1-2*(p2**2+p3**2))
+        return (round(degrees(b), 5), round(degrees(a), 5), round(degrees(c), 5))
 
     def copy(self):
-        return Item(self.item_id, self.instance_id, self.pos[0, 0], self.pos[1, 0], self.pos[2, 0], self.rot[0, 0], self.rot[1, 0], self.rot[2, 0])
+        return Item(self.item_id, self.instance_id, self.pos_x, self.pos_y, self.pos_z, self.rot_x, self.rot_y, self.rot_z)
 
     def __str__(self):
         return ('\n    <TrackBlueprint xsi:type="TrackBlueprintFlag">' + \
@@ -111,24 +186,33 @@ class Item:
                 '\n      <purpose>Functional</purpose>' + \
                 '\n    </TrackBlueprint>').format(self.item_id,
                                                   self.instance_id,
-                                                  round(self.pos[0, 0], 3),
-                                                  round(self.pos[1, 0], 3),
-                                                  round(self.pos[2, 0], 3),
-                                                  round(self.rot[0, 0], 3),
-                                                  round(self.rot[1, 0], 3),
-                                                  round(self.rot[2, 0], 3))
+                                                  round(self.pos_x, 3),
+                                                  round(self.pos_y, 3),
+                                                  round(self.pos_z, 3),
+                                                  round(self.rot_x, 3),
+                                                  round(self.rot_y, 3),
+                                                  round(self.rot_z, 3))
 
 
 
+# CONVENTION USED IN LIFTOFF:
+# - x positive right
+# - y positive up
+# - z positive forward -> left-handed coordinate system
+# - pitch is the rotation along x
+# - yaw   is the rotation along y
+# - roll  is the rotation along z
+# - rotation positive clockwise
+# - order of rotation is YXZ
+# This program applies rotations with regards to the global (fixed) XYZ axis,
+# while the Editor rotates the objects with regards to their local (moving) XYZ axis.
 class Blueprint:
     def __init__(self, name):
         self.name = name
         self.items = list()
-        
         self.pos_x = 0
         self.pos_y = 0
         self.pos_z = 0
-        
         self.rot_x = 0
         self.rot_y = 0
         self.rot_z = 0
@@ -138,125 +222,54 @@ class Blueprint:
         self.pos_x += x
         self.pos_y += y
         self.pos_z += z
-        
         # translation of items
-        translation_matrix = get_translation_matrix(x, y, z)
         for item in self.items:
-            item.transform(translation_matrix)
+            item.translate(x, y, z)
 
-    # sequence for a generic rotation of a set of items:
-    # - translate items in the origin
-    # - rotate using transformation matrices
-    # - translate back in the starting point
-    # - rotate each single item modifying their attributes
+    def rotate(self, pitch, yaw, roll):
+        # this rotation is actually a translation of the center of each item
+        self._rotate_y(yaw)
+        self._rotate_x(pitch)
+        self._rotate_z(roll)
+        # here comes the real rotation, the toughest part of the program
+        for item in self.items:
+            item.rotate(pitch, yaw, roll)
 
-    def rotate_x(self, angle):
+    def _rotate_x(self, angle):
+        rotation = Quaternion(axis=[1, 0, 0], angle=radians(angle))
+        
         # rotation of center
-        new_angle = self.rot_x + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot_x = new_angle
-        
-        # rotation of items
-        
-        # translate items in the origin
-        inverse_translation_matrix = get_translation_matrix(-self.pos_x, -self.pos_y, -self.pos_z)
-        
-        # remove rotation along y-axis
-        inverse_y_rotation_matrix = get_y_rotation_matrix(-self.rot_y)
-        
-        # remove rotation along z-axis
-        inverse_z_rotation_matrix = get_z_rotation_matrix(-self.rot_z)
-        
-        # rotate along x-axis
-        rotation_matrix = get_x_rotation_matrix(angle)
-        
-        # restore rotation along z-axis
-        z_rotation_matrix = get_z_rotation_matrix(self.rot_z)
-        
-        # restore rotation along y-axis
-        y_rotation_matrix = get_y_rotation_matrix(self.rot_y)
-        
-        # translate back in the starting point
-        translation_matrix = get_translation_matrix(self.pos_x, self.pos_y, self.pos_z)
-        
-        # apply transformations and rotate each single item modifying their attributes
-        transformation_matrix = translation_matrix @ y_rotation_matrix @ z_rotation_matrix @ rotation_matrix @ inverse_z_rotation_matrix @ inverse_y_rotation_matrix @ inverse_translation_matrix
+        self.rot_x = (self.rot_x + angle) % 360
+        # translation of items
         for item in self.items:
-            item.transform(transformation_matrix)
-            item.rotate_x(angle)
+            new_position = rotate(item.pos_x, item.pos_y, item.pos_z, self.pos_x, self.pos_y, self.pos_z, rotation)
+            item.pos_x = new_position[0]
+            item.pos_y = new_position[1]
+            item.pos_z = new_position[2]
 
-    def rotate_y(self, angle):
+    def _rotate_y(self, angle):
+        rotation = Quaternion(axis=[0, 1, 0], angle=radians(angle))
+        
         # rotation of center
-        new_angle = self.rot_y + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot_y = new_angle
-        
-        # rotation of items
-        
-        # translate items in the origin
-        inverse_translation_matrix = get_translation_matrix(-self.pos_x, -self.pos_y, -self.pos_z)
-        
-        # remove rotation along x-axis
-        inverse_x_rotation_matrix = get_x_rotation_matrix(-self.rot_x)
-        
-        # remove rotation along z-axis
-        inverse_z_rotation_matrix = get_z_rotation_matrix(-self.rot_z)
-        
-        # rotate along y-axis
-        rotation_matrix = get_y_rotation_matrix(angle)
-        
-        # restore rotation along z-axis
-        z_rotation_matrix = get_z_rotation_matrix(self.rot_z)
-        
-        # restore rotation along x-axis
-        x_rotation_matrix = get_x_rotation_matrix(self.rot_x)
-        
-        # translate back in the starting point
-        translation_matrix = get_translation_matrix(self.pos_x, self.pos_y, self.pos_z)
-        
-        # apply transformations and rotate each single item modifying their attributes
-        transformation_matrix = translation_matrix @ x_rotation_matrix @ z_rotation_matrix @ rotation_matrix @ inverse_z_rotation_matrix @ inverse_x_rotation_matrix @ inverse_translation_matrix
+        self.rot_y = (self.rot_y + angle) % 360
+        # translation of items
         for item in self.items:
-            item.transform(transformation_matrix)
-            item.rotate_y(angle)
+            new_position = rotate(item.pos_x, item.pos_y, item.pos_z, self.pos_x, self.pos_y, self.pos_z, rotation)
+            item.pos_x = new_position[0]
+            item.pos_y = new_position[1]
+            item.pos_z = new_position[2]
 
-    def rotate_z(self, angle):
+    def _rotate_z(self, angle):
+        rotation = Quaternion(axis=[0, 0, 1], angle=radians(angle))
+        
         # rotation of center
-        new_angle = self.rot_z + angle
-        while new_angle >= 360: new_angle -= 360
-        while new_angle < 0:    new_angle += 360
-        self.rot_z = new_angle
-        
-        # rotation of items
-        
-        # translate items in the origin
-        inverse_translation_matrix = get_translation_matrix(-self.pos_x, -self.pos_y, -self.pos_z)
-        
-        # remove rotation along x-axis
-        inverse_x_rotation_matrix = get_x_rotation_matrix(-self.rot_x)
-        
-        # remove rotation along y-axis
-        inverse_y_rotation_matrix = get_y_rotation_matrix(-self.rot_y)
-        
-        # rotate along z-axis
-        rotation_matrix = get_z_rotation_matrix(angle)
-        
-        # restore rotation along y-axis
-        y_rotation_matrix = get_y_rotation_matrix(self.rot_y)
-        
-        # restore rotation along x-axis
-        x_rotation_matrix = get_x_rotation_matrix(self.rot_x)
-        
-        # translate back in the starting point
-        translation_matrix = get_translation_matrix(self.pos_x, self.pos_y, self.pos_z)
-        
-        # apply transformations and rotate each single item modifying their attributes
-        transformation_matrix = translation_matrix @ x_rotation_matrix @ y_rotation_matrix @ rotation_matrix @ inverse_y_rotation_matrix @ inverse_x_rotation_matrix @ inverse_translation_matrix
+        self.rot_z = (self.rot_z + angle) % 360
+        # translation of items
         for item in self.items:
-            item.transform(transformation_matrix)
-            item.rotate_z(angle)
+            new_position = rotate(item.pos_x, item.pos_y, item.pos_z, self.pos_x, self.pos_y, self.pos_z, rotation)
+            item.pos_x = new_position[0]
+            item.pos_y = new_position[1]
+            item.pos_z = new_position[2]
 
     def add(self, item):
         self.items.append(item)
@@ -301,6 +314,7 @@ class Blueprint:
                                        round(self.rot_x, 3),
                                        round(self.rot_y, 3),
                                        round(self.rot_z, 3))
+
     def __str__(self):
         xml_output = ""
         for item in self.items:

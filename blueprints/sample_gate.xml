@@ -1,21 +1,6 @@
   <blueprints xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
     <TrackBlueprint xsi:type="TrackBlueprintFlag">
       <itemID>DrawingBoardCylinder0.5mx1m02</itemID>
-      <instanceID>1</instanceID>
-      <position>
-        <x>0.0</x>
-        <y>0.0</y>
-        <z>0.0</z>
-      </position>
-      <rotation>
-        <x>0.0</x>
-        <y>0.0</y>
-        <z>0.0</z>
-      </rotation>
-      <purpose>Functional</purpose>
-    </TrackBlueprint>
-    <TrackBlueprint xsi:type="TrackBlueprintFlag">
-      <itemID>DrawingBoardCylinder0.5mx1m02</itemID>
       <instanceID>2</instanceID>
       <position>
         <x>0.0</x>
